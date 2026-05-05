@@ -1,3 +1,5 @@
+import type { ConfigFile } from "./config-files.js";
+
 export type PackageManager = "npm";
 export type ProjectLanguage = "typescript";
 export type ProjectFramework = "next";
@@ -18,6 +20,7 @@ export type ProjectMetadata = {
 
 export type PackageMetadata = {
   project: ProjectMetadata;
+  configFiles: ConfigFile[];
   scripts: Record<string, string>;
   dependencies: {
     runtime: string[];
@@ -29,6 +32,7 @@ export type PackageMetadataInput = {
   packageJson: PackageJson;
   hasPackageLock: boolean;
   hasTsConfig: boolean;
+  configFiles?: ConfigFile[];
 };
 
 export function extractPackageMetadata(
@@ -47,6 +51,7 @@ export function extractPackageMetadata(
       language: input.hasTsConfig ? "typescript" : null,
       framework: runtimeDependencies.includes("next") ? "next" : null
     },
+    configFiles: [...(input.configFiles ?? [])],
     scripts: scriptEntries(input.packageJson.scripts),
     dependencies: {
       runtime: runtimeDependencies,

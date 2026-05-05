@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { SAFE_CONFIG_FILE_NAMES, detectConfigFiles } from "./config-files.js";
 import {
   extractPackageMetadata,
   type PackageJson,
@@ -22,8 +23,17 @@ export function readPackageMetadata(rootDir: string): PackageMetadata {
   return extractPackageMetadata({
     packageJson,
     hasPackageLock: existsSync(join(rootDir, "package-lock.json")),
-    hasTsConfig: existsSync(join(rootDir, "tsconfig.json"))
+    hasTsConfig: existsSync(join(rootDir, "tsconfig.json")),
+    configFiles: readConfigFiles(rootDir)
   });
+}
+
+export function readConfigFiles(rootDir: string) {
+  const existingConfigFileNames = SAFE_CONFIG_FILE_NAMES.filter((fileName) =>
+    existsSync(join(rootDir, fileName))
+  );
+
+  return detectConfigFiles(existingConfigFileNames);
 }
 
 export function main(rootDir = process.cwd()): void {
