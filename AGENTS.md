@@ -22,8 +22,7 @@ TypeScript CLI tool.
 
 Do not add these until a dedicated task asks for them:
 
-- scanner implementation
-- `contextforge:scan`
+- scanner implementation beyond the current placeholder CLI
 - generated `.agent-context/project.snapshot.json`
 - MCP server
 - SQLite or another persistent database
