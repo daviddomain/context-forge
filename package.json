@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "contextforge:scan": "tsx src/contextforge/scan-cli.ts",
     "dev": "tsx src/index.ts"
   },
   "engines": {
