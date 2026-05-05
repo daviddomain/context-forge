@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import test from "node:test";
 
 import { extractPackageMetadata } from "../dist/contextforge/package-metadata.js";
+import { readPackageMetadata } from "../dist/contextforge/scan-cli.js";
 
 test("extracts sorted package metadata facts", () => {
   const metadata = extractPackageMetadata({
@@ -62,4 +66,56 @@ test("uses empty collections and null detections for missing optional data", () 
       dev: []
     }
   });
+});
+
+test("reads package metadata from a repository root", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    writeFileSync(
+      join(rootDir, "package.json"),
+      JSON.stringify({
+        name: "temp-app",
+        scripts: {
+          start: "next start"
+        },
+        dependencies: {
+          next: "^16.0.0"
+        }
+      })
+    );
+    writeFileSync(join(rootDir, "package-lock.json"), "{}");
+    writeFileSync(join(rootDir, "tsconfig.json"), "{}");
+
+    assert.deepEqual(readPackageMetadata(rootDir), {
+      project: {
+        name: "temp-app",
+        packageManager: "npm",
+        language: "typescript",
+        framework: "next"
+      },
+      scripts: {
+        start: "next start"
+      },
+      dependencies: {
+        runtime: ["next"],
+        dev: []
+      }
+    });
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("fails clearly when package.json is missing", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    assert.throws(
+      () => readPackageMetadata(rootDir),
+      new RegExp(`Missing package\\.json at .*${rootDir.replaceAll("\\", "\\\\")}`)
+    );
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
 });

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   extractPackageMetadata,
@@ -36,4 +37,10 @@ export function main(rootDir = process.cwd()): void {
   }
 }
 
-main();
+if (process.argv[1] !== undefined) {
+  const entrypointUrl = pathToFileURL(process.argv[1]).href;
+
+  if (import.meta.url === entrypointUrl) {
+    main();
+  }
+}
