@@ -81,12 +81,14 @@ test("scans Next.js App Router pages, layouts and route handlers", () => {
         {
           path: "/",
           type: "layout",
-          file: "app/(dashboard)/layout.tsx"
+          file: "app/(dashboard)/layout.tsx",
+          routeSegments: ["(dashboard)"]
         },
         {
           path: "/",
           type: "layout",
-          file: "app/layout.tsx"
+          file: "app/layout.tsx",
+          routeSegments: []
         },
         {
           path: "/",
