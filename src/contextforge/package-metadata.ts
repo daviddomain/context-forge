@@ -51,7 +51,7 @@ export function extractPackageMetadata(
       language: input.hasTsConfig ? "typescript" : null,
       framework: runtimeDependencies.includes("next") ? "next" : null
     },
-    configFiles: [...(input.configFiles ?? [])],
+    configFiles: [...(input.configFiles ?? [])].sort(compareConfigFilePath),
     scripts: scriptEntries(input.packageJson.scripts),
     dependencies: {
       runtime: runtimeDependencies,
@@ -78,6 +78,10 @@ function dependencyNames(value: unknown): string[] {
   }
 
   return Object.keys(value).sort((left, right) => left.localeCompare(right));
+}
+
+function compareConfigFilePath(left: ConfigFile, right: ConfigFile): number {
+  return left.path < right.path ? -1 : left.path > right.path ? 1 : 0;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

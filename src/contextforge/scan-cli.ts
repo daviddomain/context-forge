@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -30,10 +30,18 @@ export function readPackageMetadata(rootDir: string): PackageMetadata {
 
 export function readConfigFiles(rootDir: string) {
   const existingConfigFileNames = SAFE_CONFIG_FILE_NAMES.filter((fileName) =>
-    existsSync(join(rootDir, fileName))
+    isFile(join(rootDir, fileName))
   );
 
   return detectConfigFiles(existingConfigFileNames);
+}
+
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
 }
 
 export function main(rootDir = process.cwd()): void {

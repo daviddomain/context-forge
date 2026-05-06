@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -12,7 +12,7 @@ test("extracts sorted package metadata facts", () => {
   const metadata = extractPackageMetadata({
     hasPackageLock: true,
     hasTsConfig: true,
-    configFiles: [{ path: "package.json" }, { path: "tsconfig.json" }],
+    configFiles: [{ path: "tsconfig.json" }, { path: "package.json" }],
     packageJson: {
       name: "example-app",
       scripts: {
@@ -152,6 +152,19 @@ test("does not list secret-bearing env files from the repository root", () => {
       { path: ".env.example" },
       { path: "postcss.config.js" }
     ]);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("does not list directories with config file names", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    mkdirSync(join(rootDir, "tsconfig.json"));
+    writeFileSync(join(rootDir, "components.json"), "{}");
+
+    assert.deepEqual(readConfigFiles(rootDir), [{ path: "components.json" }]);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }
