@@ -7,6 +7,7 @@ export type AppRoute = {
   path: string;
   type: AppRouteType;
   file: string;
+  routeSegments?: string[];
   layouts?: string[];
   methods?: HttpMethod[];
 };
@@ -153,7 +154,8 @@ function routeFileToRoute(
     return {
       path,
       type: "layout",
-      file: routeFile.path
+      file: routeFile.path,
+      routeSegments: [...routeFile.segments]
     };
   }
 
