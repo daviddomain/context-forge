@@ -114,6 +114,71 @@ export default UsersPage;`
   );
 });
 
+test("marks locally aliased exports as exported symbols", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "src/components/button.tsx",
+      `const InternalButton = () => null;
+export { InternalButton as Button };`
+    ),
+    [
+      {
+        name: "InternalButton",
+        kind: "component",
+        file: "src/components/button.tsx",
+        exported: true,
+        tags: []
+      }
+    ]
+  );
+});
+
+test("detects multiline arrow functions as function symbols", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "src/load-users.ts",
+      `const loadUsers = (
+  userId
+) => fetch(\`/api/users/\${userId}\`);`
+    ),
+    [
+      {
+        name: "loadUsers",
+        kind: "function",
+        file: "src/load-users.ts",
+        exported: false,
+        tags: ["side-effect"]
+      }
+    ]
+  );
+});
+
+test("detects schema suffix names as schema symbols", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "src/user-schema.ts",
+      `export const userSchema = createSchema();
+export type UserSchema = typeof userSchema;`
+    ),
+    [
+      {
+        name: "userSchema",
+        kind: "schema",
+        file: "src/user-schema.ts",
+        exported: true,
+        tags: ["schema"]
+      },
+      {
+        name: "UserSchema",
+        kind: "schema",
+        file: "src/user-schema.ts",
+        exported: true,
+        tags: ["schema"]
+      }
+    ]
+  );
+});
+
 test("scans source files deterministically and excludes generated directories", () => {
   const rootDir = mkdtempSync(join(tmpdir(), "context-forge-source-files-"));
 

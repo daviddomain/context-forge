@@ -96,7 +96,10 @@ export function extractSymbols(
   const imports = extractImports(source);
   const kind = detectFileKind(path);
   const fileTags = detectTags(path, source, imports, kind);
-  const exportedNames = new Set(extractExports(source));
+  const exportedNames = new Set([
+    ...extractExports(source),
+    ...extractLocalExportNames(source)
+  ]);
   const defaultExportedIdentifier = extractDefaultExportedIdentifier(source);
 
   if (defaultExportedIdentifier !== null) {
@@ -385,6 +388,14 @@ function extractDefaultExportedIdentifier(source: string): string | null {
   return match?.[1] ?? null;
 }
 
+function extractLocalExportNames(source: string): string[] {
+  return sortedUnique(
+    matches(source, /\bexport\s+(?:type\s+)?\{([^}]+)\}/g).flatMap(
+      parseLocalExportList
+    )
+  );
+}
+
 function createSymbol(input: {
   name: string;
   kind: SourceSymbolKind;
@@ -410,9 +421,7 @@ function detectVariableSymbolKind(
   source: string,
   matchIndex: number
 ): SourceSymbolKind {
-  const declarationSnippet = source
-    .slice(matchIndex, matchIndex + 240)
-    .split(/\r?\n/, 1)[0] ?? "";
+  const declarationSnippet = source.slice(matchIndex, matchIndex + 240);
 
   if (
     isSchemaName(name) ||
@@ -437,7 +446,7 @@ function isLikelyComponentName(name: string, path: string): boolean {
 }
 
 function isSchemaName(name: string): boolean {
-  return /\bschema\b/i.test(name);
+  return /schema/i.test(name);
 }
 
 function isDbImport(value: string): boolean {
@@ -465,6 +474,16 @@ function parseExportList(exportList: string): string[] {
       return aliasMatch?.[1] ?? item;
     })
     .map((item) => item.trim())
+    .filter((item) => /^[A-Za-z_$][\w$]*$/.test(item));
+}
+
+function parseLocalExportList(exportList: string): string[] {
+  return exportList
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => item.replace(/^type\s+/, ""))
+    .map((item) => item.split(/\s+as\s+/)[0]?.trim() ?? "")
     .filter((item) => /^[A-Za-z_$][\w$]*$/.test(item));
 }
 
