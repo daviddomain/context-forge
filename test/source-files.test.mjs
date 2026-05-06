@@ -8,6 +8,7 @@ import {
   createSourceFileIndexEntry,
   extractExports,
   extractImports,
+  extractSymbols,
   scanSourceFiles
 } from "../dist/contextforge/source-files.js";
 import { scanRepository } from "../dist/contextforge/scan-cli.js";
@@ -57,6 +58,59 @@ test("creates source file index entries with kind and heuristic tags", () => {
       imports: ["@/server/db"],
       exports: ["default"]
     }
+  );
+});
+
+test("extracts lightweight symbols with export status and heuristic tags", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "app/users/page.tsx",
+      `"use client";
+import { z } from "zod";
+type LocalValue = string;
+export interface UserProps {}
+export const userSchema = z.object({ id: z.string() });
+export function helper() {}
+const UsersPage = () => <main />;
+export default UsersPage;`
+    ),
+    [
+      {
+        name: "helper",
+        kind: "function",
+        file: "app/users/page.tsx",
+        exported: true,
+        tags: ["client-component", "schema"]
+      },
+      {
+        name: "LocalValue",
+        kind: "type",
+        file: "app/users/page.tsx",
+        exported: false,
+        tags: ["client-component", "schema"]
+      },
+      {
+        name: "UserProps",
+        kind: "interface",
+        file: "app/users/page.tsx",
+        exported: true,
+        tags: ["client-component", "schema"]
+      },
+      {
+        name: "userSchema",
+        kind: "schema",
+        file: "app/users/page.tsx",
+        exported: true,
+        tags: ["client-component", "schema"]
+      },
+      {
+        name: "UsersPage",
+        kind: "component",
+        file: "app/users/page.tsx",
+        exported: true,
+        tags: ["client-component", "schema"]
+      }
+    ]
   );
 });
 
@@ -116,6 +170,35 @@ test("scans source files deterministically and excludes generated directories", 
     assert.deepEqual(
       scanRepository(rootDir).files.map((file) => file.path),
       ["app/api/users/route.ts", "next.config.ts", "src/a.ts", "src/b.test.ts"]
+    );
+
+    assert.deepEqual(
+      scanRepository(rootDir).symbols.map((symbol) => ({
+        name: symbol.name,
+        kind: symbol.kind,
+        file: symbol.file,
+        exported: symbol.exported
+      })),
+      [
+        {
+          name: "GET",
+          kind: "function",
+          file: "app/api/users/route.ts",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
+          file: "next.config.ts",
+          exported: true
+        },
+        {
+          name: "testValue",
+          kind: "constant",
+          file: "src/b.test.ts",
+          exported: true
+        }
+      ]
     );
   } finally {
     rmSync(rootDir, { recursive: true, force: true });

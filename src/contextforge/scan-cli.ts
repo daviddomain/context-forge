@@ -9,11 +9,17 @@ import {
   type PackageJson,
   type PackageMetadata
 } from "./package-metadata.js";
-import { scanSourceFiles, type SourceFileIndexEntry } from "./source-files.js";
+import {
+  scanSourceFiles,
+  scanSourceSymbols,
+  type SourceFileIndexEntry,
+  type SourceSymbolIndexEntry
+} from "./source-files.js";
 
 export type ScanResult = PackageMetadata & {
   routes: AppRoute[];
   files: SourceFileIndexEntry[];
+  symbols: SourceSymbolIndexEntry[];
   warnings: string[];
 };
 
@@ -52,6 +58,7 @@ export function scanRepository(rootDir: string): ScanResult {
     ...metadata,
     routes: routeScan.routes,
     files: scanSourceFiles(rootDir),
+    symbols: scanSourceSymbols(rootDir),
     warnings: routeScan.warnings
   };
 }

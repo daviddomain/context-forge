@@ -3,12 +3,29 @@ import { basename, extname, join, relative, sep } from "node:path";
 
 export type SourceFileKind = "source" | "test" | "config";
 
+export type SourceSymbolKind =
+  | "component"
+  | "function"
+  | "constant"
+  | "type"
+  | "interface"
+  | "schema"
+  | "unknown";
+
 export type SourceFileIndexEntry = {
   path: string;
   kind: SourceFileKind;
   tags: string[];
   imports: string[];
   exports: string[];
+};
+
+export type SourceSymbolIndexEntry = {
+  name: string;
+  kind: SourceSymbolKind;
+  file: string;
+  exported: boolean;
+  tags: string[];
 };
 
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
@@ -45,6 +62,16 @@ export function scanSourceFiles(rootDir: string): SourceFileIndexEntry[] {
     .sort(compareSourceFiles);
 }
 
+export function scanSourceSymbols(rootDir: string): SourceSymbolIndexEntry[] {
+  return collectSourceFilePaths(rootDir)
+    .flatMap((path) => {
+      const source = readFileSync(join(rootDir, path), "utf8");
+
+      return extractSymbols(path, source);
+    })
+    .sort(compareSourceSymbols);
+}
+
 export function createSourceFileIndexEntry(
   path: string,
   source: string
@@ -60,6 +87,28 @@ export function createSourceFileIndexEntry(
     imports,
     exports: extractExports(source)
   };
+}
+
+export function extractSymbols(
+  path: string,
+  source: string
+): SourceSymbolIndexEntry[] {
+  const imports = extractImports(source);
+  const kind = detectFileKind(path);
+  const fileTags = detectTags(path, source, imports, kind);
+  const exportedNames = new Set(extractExports(source));
+  const defaultExportedIdentifier = extractDefaultExportedIdentifier(source);
+
+  if (defaultExportedIdentifier !== null) {
+    exportedNames.add(defaultExportedIdentifier);
+  }
+
+  const symbols = [
+    ...extractDeclaredSymbols(path, source, exportedNames, fileTags),
+    ...extractDefaultAnonymousSymbols(path, source, fileTags)
+  ];
+
+  return uniqueSymbols(symbols).sort(compareSourceSymbols);
 }
 
 export function extractImports(source: string): string[] {
@@ -215,6 +264,182 @@ function isLikelySchema(
   );
 }
 
+function extractDeclaredSymbols(
+  path: string,
+  source: string,
+  exportedNames: Set<string>,
+  fileTags: string[]
+): SourceSymbolIndexEntry[] {
+  const symbols: SourceSymbolIndexEntry[] = [];
+
+  for (const match of source.matchAll(
+    /^(export\s+default\s+|export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm
+  )) {
+    const name = match[2] ?? "";
+
+    symbols.push(
+      createSymbol({
+        name,
+        kind: isLikelyComponentName(name, path) ? "component" : "function",
+        file: path,
+        exported: Boolean(match[1]) || exportedNames.has(name),
+        fileTags
+      })
+    );
+  }
+
+  for (const match of source.matchAll(
+    /^(export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?:[:=]|$)/gm
+  )) {
+    const name = match[2] ?? "";
+
+    symbols.push(
+      createSymbol({
+        name,
+        kind: detectVariableSymbolKind(name, path, source, match.index ?? 0),
+        file: path,
+        exported: Boolean(match[1]) || exportedNames.has(name),
+        fileTags
+      })
+    );
+  }
+
+  for (const match of source.matchAll(
+    /^(export\s+)?type\s+([A-Za-z_$][\w$]*)\b/gm
+  )) {
+    const name = match[2] ?? "";
+
+    symbols.push(
+      createSymbol({
+        name,
+        kind: isSchemaName(name) ? "schema" : "type",
+        file: path,
+        exported: Boolean(match[1]) || exportedNames.has(name),
+        fileTags
+      })
+    );
+  }
+
+  for (const match of source.matchAll(
+    /^(export\s+)?interface\s+([A-Za-z_$][\w$]*)\b/gm
+  )) {
+    const name = match[2] ?? "";
+
+    symbols.push(
+      createSymbol({
+        name,
+        kind: isSchemaName(name) ? "schema" : "interface",
+        file: path,
+        exported: Boolean(match[1]) || exportedNames.has(name),
+        fileTags
+      })
+    );
+  }
+
+  for (const match of source.matchAll(
+    /^(export\s+)?class\s+([A-Za-z_$][\w$]*)\b/gm
+  )) {
+    const name = match[2] ?? "";
+
+    symbols.push(
+      createSymbol({
+        name,
+        kind: "unknown",
+        file: path,
+        exported: Boolean(match[1]) || exportedNames.has(name),
+        fileTags
+      })
+    );
+  }
+
+  return symbols;
+}
+
+function extractDefaultAnonymousSymbols(
+  path: string,
+  source: string,
+  fileTags: string[]
+): SourceSymbolIndexEntry[] {
+  if (
+    !/\bexport\s+default\s+(?:async\s+)?(?:function|class)?\s*(?:\(|\{|async\b)/.test(
+      source
+    )
+  ) {
+    return [];
+  }
+
+  return [
+    createSymbol({
+      name: "default",
+      kind: isAppRouterComponent(path) ? "component" : "unknown",
+      file: path,
+      exported: true,
+      fileTags
+    })
+  ];
+}
+
+function extractDefaultExportedIdentifier(source: string): string | null {
+  const match = /\bexport\s+default\s+([A-Za-z_$][\w$]*)\s*;?/.exec(source);
+
+  return match?.[1] ?? null;
+}
+
+function createSymbol(input: {
+  name: string;
+  kind: SourceSymbolKind;
+  file: string;
+  exported: boolean;
+  fileTags: string[];
+}): SourceSymbolIndexEntry {
+  const tags =
+    input.kind === "schema" ? ["schema", ...input.fileTags] : input.fileTags;
+
+  return {
+    name: input.name,
+    kind: input.kind,
+    file: input.file,
+    exported: input.exported,
+    tags: sortedUnique(tags)
+  };
+}
+
+function detectVariableSymbolKind(
+  name: string,
+  path: string,
+  source: string,
+  matchIndex: number
+): SourceSymbolKind {
+  const declarationSnippet = source
+    .slice(matchIndex, matchIndex + 240)
+    .split(/\r?\n/, 1)[0] ?? "";
+
+  if (
+    isSchemaName(name) ||
+    /(?:^|[^\w$])(?:z|yup)\.object\s*\(/.test(declarationSnippet)
+  ) {
+    return "schema";
+  }
+
+  if (isLikelyComponentName(name, path)) {
+    return "component";
+  }
+
+  if (/=>\s*|function\b/.test(declarationSnippet)) {
+    return "function";
+  }
+
+  return "constant";
+}
+
+function isLikelyComponentName(name: string, path: string): boolean {
+  return /\.(tsx|jsx)$/.test(path) && /^[A-Z][A-Za-z0-9_$]*$/.test(name);
+}
+
+function isSchemaName(name: string): boolean {
+  return /\bschema\b/i.test(name);
+}
+
 function isDbImport(value: string): boolean {
   return DB_IMPORTS.has(value) || /\b(prisma|drizzle|database|db)\b/i.test(value);
 }
@@ -253,6 +478,21 @@ function sortedUnique(values: string[]): string[] {
   );
 }
 
+function uniqueSymbols(
+  symbols: SourceSymbolIndexEntry[]
+): SourceSymbolIndexEntry[] {
+  const uniqueByKey = new Map<string, SourceSymbolIndexEntry>();
+
+  for (const symbol of symbols) {
+    uniqueByKey.set(
+      `${symbol.file}\0${symbol.name}\0${symbol.kind}`,
+      symbol
+    );
+  }
+
+  return [...uniqueByKey.values()];
+}
+
 function normalizePath(path: string): string {
   return path.split(sep).join("/");
 }
@@ -262,4 +502,15 @@ function compareSourceFiles(
   right: SourceFileIndexEntry
 ): number {
   return left.path.localeCompare(right.path);
+}
+
+function compareSourceSymbols(
+  left: SourceSymbolIndexEntry,
+  right: SourceSymbolIndexEntry
+): number {
+  return (
+    left.file.localeCompare(right.file) ||
+    left.name.localeCompare(right.name) ||
+    left.kind.localeCompare(right.kind)
+  );
 }
