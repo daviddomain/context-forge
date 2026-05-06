@@ -3,11 +3,17 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { SAFE_CONFIG_FILE_NAMES, detectConfigFiles } from "./config-files.js";
+import { scanNextAppRoutes, type AppRoute } from "./next-routes.js";
 import {
   extractPackageMetadata,
   type PackageJson,
   type PackageMetadata
 } from "./package-metadata.js";
+
+export type ScanResult = PackageMetadata & {
+  routes: AppRoute[];
+  warnings: string[];
+};
 
 export function readPackageMetadata(rootDir: string): PackageMetadata {
   const packageJsonPath = join(rootDir, "package.json");
@@ -36,6 +42,17 @@ export function readConfigFiles(rootDir: string) {
   return detectConfigFiles(existingConfigFileNames);
 }
 
+export function scanRepository(rootDir: string): ScanResult {
+  const metadata = readPackageMetadata(rootDir);
+  const routeScan = scanNextAppRoutes(rootDir);
+
+  return {
+    ...metadata,
+    routes: routeScan.routes,
+    warnings: routeScan.warnings
+  };
+}
+
 function isFile(path: string): boolean {
   try {
     return statSync(path).isFile();
@@ -46,8 +63,13 @@ function isFile(path: string): boolean {
 
 export function main(rootDir = process.cwd()): void {
   try {
-    const metadata = readPackageMetadata(rootDir);
-    console.log(JSON.stringify(metadata, null, 2));
+    const result = scanRepository(rootDir);
+
+    for (const warning of result.warnings) {
+      console.warn(`ContextForge scan warning: ${warning}`);
+    }
+
+    console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`ContextForge scan failed: ${message}`);
