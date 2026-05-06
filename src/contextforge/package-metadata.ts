@@ -1,3 +1,5 @@
+import type { ConfigFile } from "./config-files.js";
+
 export type PackageManager = "npm";
 export type ProjectLanguage = "typescript";
 export type ProjectFramework = "next";
@@ -18,6 +20,7 @@ export type ProjectMetadata = {
 
 export type PackageMetadata = {
   project: ProjectMetadata;
+  configFiles: ConfigFile[];
   scripts: Record<string, string>;
   dependencies: {
     runtime: string[];
@@ -29,6 +32,7 @@ export type PackageMetadataInput = {
   packageJson: PackageJson;
   hasPackageLock: boolean;
   hasTsConfig: boolean;
+  configFiles?: ConfigFile[];
 };
 
 export function extractPackageMetadata(
@@ -47,6 +51,7 @@ export function extractPackageMetadata(
       language: input.hasTsConfig ? "typescript" : null,
       framework: runtimeDependencies.includes("next") ? "next" : null
     },
+    configFiles: [...(input.configFiles ?? [])].sort(compareConfigFilePath),
     scripts: scriptEntries(input.packageJson.scripts),
     dependencies: {
       runtime: runtimeDependencies,
@@ -73,6 +78,10 @@ function dependencyNames(value: unknown): string[] {
   }
 
   return Object.keys(value).sort((left, right) => left.localeCompare(right));
+}
+
+function compareConfigFilePath(left: ConfigFile, right: ConfigFile): number {
+  return left.path < right.path ? -1 : left.path > right.path ? 1 : 0;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

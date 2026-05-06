@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
+import { detectConfigFiles } from "../dist/contextforge/config-files.js";
 import { extractPackageMetadata } from "../dist/contextforge/package-metadata.js";
-import { readPackageMetadata } from "../dist/contextforge/scan-cli.js";
+import { readConfigFiles, readPackageMetadata } from "../dist/contextforge/scan-cli.js";
 
 test("extracts sorted package metadata facts", () => {
   const metadata = extractPackageMetadata({
     hasPackageLock: true,
     hasTsConfig: true,
+    configFiles: [{ path: "tsconfig.json" }, { path: "package.json" }],
     packageJson: {
       name: "example-app",
       scripts: {
@@ -35,6 +37,7 @@ test("extracts sorted package metadata facts", () => {
       language: "typescript",
       framework: "next"
     },
+    configFiles: [{ path: "package.json" }, { path: "tsconfig.json" }],
     scripts: {
       build: "next build",
       test: "node --test"
@@ -60,6 +63,7 @@ test("uses empty collections and null detections for missing optional data", () 
       language: null,
       framework: null
     },
+    configFiles: [],
     scripts: {},
     dependencies: {
       runtime: [],
@@ -86,6 +90,9 @@ test("reads package metadata from a repository root", () => {
     );
     writeFileSync(join(rootDir, "package-lock.json"), "{}");
     writeFileSync(join(rootDir, "tsconfig.json"), "{}");
+    writeFileSync(join(rootDir, ".env.example"), "PUBLIC_ORIGIN=http://localhost");
+    writeFileSync(join(rootDir, ".env.local"), "SECRET_TOKEN=super-secret");
+    writeFileSync(join(rootDir, "next.config.mjs"), "export default {};");
 
     assert.deepEqual(readPackageMetadata(rootDir), {
       project: {
@@ -94,6 +101,12 @@ test("reads package metadata from a repository root", () => {
         language: "typescript",
         framework: "next"
       },
+      configFiles: [
+        { path: ".env.example" },
+        { path: "next.config.mjs" },
+        { path: "package.json" },
+        { path: "tsconfig.json" }
+      ],
       scripts: {
         start: "next start"
       },
@@ -102,6 +115,56 @@ test("reads package metadata from a repository root", () => {
         dev: []
       }
     });
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("detects only safe config files in stable order", () => {
+  assert.deepEqual(
+    detectConfigFiles([
+      ".env.production",
+      "tailwind.config.ts",
+      "package.json",
+      ".env.example",
+      ".env.local",
+      "components.json"
+    ]),
+    [
+      { path: ".env.example" },
+      { path: "components.json" },
+      { path: "package.json" },
+      { path: "tailwind.config.ts" }
+    ]
+  );
+});
+
+test("does not list secret-bearing env files from the repository root", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    writeFileSync(join(rootDir, ".env"), "TOKEN=secret");
+    writeFileSync(join(rootDir, ".env.development"), "TOKEN=secret");
+    writeFileSync(join(rootDir, ".env.example"), "TOKEN=");
+    writeFileSync(join(rootDir, "postcss.config.js"), "export default {};");
+
+    assert.deepEqual(readConfigFiles(rootDir), [
+      { path: ".env.example" },
+      { path: "postcss.config.js" }
+    ]);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("does not list directories with config file names", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    mkdirSync(join(rootDir, "tsconfig.json"));
+    writeFileSync(join(rootDir, "components.json"), "{}");
+
+    assert.deepEqual(readConfigFiles(rootDir), [{ path: "components.json" }]);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }
