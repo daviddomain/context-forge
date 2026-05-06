@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { basename, extname, join, relative, sep } from "node:path";
 
 export type SourceFileKind = "source" | "test" | "config";
