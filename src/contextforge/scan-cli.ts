@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -22,6 +22,21 @@ export type ScanResult = PackageMetadata & {
   symbols: SourceSymbolIndexEntry[];
   warnings: string[];
 };
+
+export type ProjectSnapshot = {
+  snapshotVersion: "0.1.0";
+  project: PackageMetadata["project"];
+  scripts: PackageMetadata["scripts"];
+  dependencies: PackageMetadata["dependencies"];
+  configs: PackageMetadata["configs"];
+  routes: AppRoute[];
+  files: SourceFileIndexEntry[];
+  symbols: SourceSymbolIndexEntry[];
+};
+
+export const SNAPSHOT_VERSION = "0.1.0";
+export const SNAPSHOT_DIR = ".agent-context";
+export const SNAPSHOT_FILE = "project.snapshot.json";
 
 export function readPackageMetadata(rootDir: string): PackageMetadata {
   const packageJsonPath = join(rootDir, "package.json");
@@ -63,6 +78,32 @@ export function scanRepository(rootDir: string): ScanResult {
   };
 }
 
+export function createProjectSnapshot(scanResult: ScanResult): ProjectSnapshot {
+  return {
+    snapshotVersion: SNAPSHOT_VERSION,
+    project: scanResult.project,
+    scripts: scanResult.scripts,
+    dependencies: scanResult.dependencies,
+    configs: scanResult.configs,
+    routes: scanResult.routes,
+    files: scanResult.files,
+    symbols: scanResult.symbols
+  };
+}
+
+export function writeProjectSnapshot(
+  rootDir: string,
+  snapshot: ProjectSnapshot
+): string {
+  const snapshotDir = join(rootDir, SNAPSHOT_DIR);
+  const snapshotPath = join(snapshotDir, SNAPSHOT_FILE);
+
+  mkdirSync(snapshotDir, { recursive: true });
+  writeFileSync(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+
+  return snapshotPath;
+}
+
 function isFile(path: string): boolean {
   try {
     return statSync(path).isFile();
@@ -74,12 +115,14 @@ function isFile(path: string): boolean {
 export function main(rootDir = process.cwd()): void {
   try {
     const result = scanRepository(rootDir);
+    const snapshot = createProjectSnapshot(result);
+    const snapshotPath = writeProjectSnapshot(rootDir, snapshot);
 
     for (const warning of result.warnings) {
       console.warn(`ContextForge scan warning: ${warning}`);
     }
 
-    console.log(JSON.stringify(result, null, 2));
+    console.log(`ContextForge snapshot written to ${snapshotPath}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`ContextForge scan failed: ${message}`);

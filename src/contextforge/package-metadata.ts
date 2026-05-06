@@ -13,14 +13,16 @@ export type PackageJson = {
 
 export type ProjectMetadata = {
   name: string | null;
+  rootPath: ".";
   packageManager: PackageManager | null;
   language: ProjectLanguage | null;
   framework: ProjectFramework | null;
+  frameworkVersion: string | null;
 };
 
 export type PackageMetadata = {
   project: ProjectMetadata;
-  configFiles: ConfigFile[];
+  configs: ConfigFile[];
   scripts: Record<string, string>;
   dependencies: {
     runtime: string[];
@@ -40,6 +42,7 @@ export function extractPackageMetadata(
 ): PackageMetadata {
   const runtimeDependencies = dependencyNames(input.packageJson.dependencies);
   const devDependencies = dependencyNames(input.packageJson.devDependencies);
+  const frameworkVersion = dependencyVersion(input.packageJson.dependencies, "next");
 
   return {
     project: {
@@ -47,17 +50,29 @@ export function extractPackageMetadata(
         typeof input.packageJson.name === "string"
           ? input.packageJson.name
           : null,
+      rootPath: ".",
       packageManager: input.hasPackageLock ? "npm" : null,
       language: input.hasTsConfig ? "typescript" : null,
-      framework: runtimeDependencies.includes("next") ? "next" : null
+      framework: runtimeDependencies.includes("next") ? "next" : null,
+      frameworkVersion
     },
-    configFiles: [...(input.configFiles ?? [])].sort(compareConfigFilePath),
+    configs: [...(input.configFiles ?? [])].sort(compareConfigFilePath),
     scripts: scriptEntries(input.packageJson.scripts),
     dependencies: {
       runtime: runtimeDependencies,
       dev: devDependencies
     }
   };
+}
+
+function dependencyVersion(value: unknown, dependencyName: string): string | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+
+  const version = value[dependencyName];
+
+  return typeof version === "string" ? version : null;
 }
 
 function scriptEntries(value: unknown): Record<string, string> {
@@ -81,7 +96,7 @@ function dependencyNames(value: unknown): string[] {
 }
 
 function compareConfigFilePath(left: ConfigFile, right: ConfigFile): number {
-  return left.path < right.path ? -1 : left.path > right.path ? 1 : 0;
+  return left.file < right.file ? -1 : left.file > right.file ? 1 : 0;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
