@@ -6,13 +6,19 @@ import test from "node:test";
 
 import { detectConfigFiles } from "../dist/contextforge/config-files.js";
 import { extractPackageMetadata } from "../dist/contextforge/package-metadata.js";
-import { readConfigFiles, readPackageMetadata } from "../dist/contextforge/scan-cli.js";
+import {
+  readConfigFiles,
+  readPackageMetadata
+} from "../dist/contextforge/scan-cli.js";
 
 test("extracts sorted package metadata facts", () => {
   const metadata = extractPackageMetadata({
     hasPackageLock: true,
     hasTsConfig: true,
-    configFiles: [{ path: "tsconfig.json" }, { path: "package.json" }],
+    configFiles: [
+      { type: "typescript", file: "tsconfig.json" },
+      { type: "package", file: "package.json" }
+    ],
     packageJson: {
       name: "example-app",
       scripts: {
@@ -33,11 +39,16 @@ test("extracts sorted package metadata facts", () => {
   assert.deepEqual(metadata, {
     project: {
       name: "example-app",
+      rootPath: ".",
       packageManager: "npm",
       language: "typescript",
-      framework: "next"
+      framework: "next",
+      frameworkVersion: "^16.0.0"
     },
-    configFiles: [{ path: "package.json" }, { path: "tsconfig.json" }],
+    configs: [
+      { type: "package", file: "package.json" },
+      { type: "typescript", file: "tsconfig.json" }
+    ],
     scripts: {
       build: "next build",
       test: "node --test"
@@ -59,11 +70,13 @@ test("uses empty collections and null detections for missing optional data", () 
   assert.deepEqual(metadata, {
     project: {
       name: null,
+      rootPath: ".",
       packageManager: null,
       language: null,
-      framework: null
+      framework: null,
+      frameworkVersion: null
     },
-    configFiles: [],
+    configs: [],
     scripts: {},
     dependencies: {
       runtime: [],
@@ -97,15 +110,17 @@ test("reads package metadata from a repository root", () => {
     assert.deepEqual(readPackageMetadata(rootDir), {
       project: {
         name: "temp-app",
+        rootPath: ".",
         packageManager: "npm",
         language: "typescript",
-        framework: "next"
+        framework: "next",
+        frameworkVersion: "^16.0.0"
       },
-      configFiles: [
-        { path: ".env.example" },
-        { path: "next.config.mjs" },
-        { path: "package.json" },
-        { path: "tsconfig.json" }
+      configs: [
+        { type: "env-example", file: ".env.example" },
+        { type: "next", file: "next.config.mjs" },
+        { type: "package", file: "package.json" },
+        { type: "typescript", file: "tsconfig.json" }
       ],
       scripts: {
         start: "next start"
@@ -131,10 +146,10 @@ test("detects only safe config files in stable order", () => {
       "components.json"
     ]),
     [
-      { path: ".env.example" },
-      { path: "components.json" },
-      { path: "package.json" },
-      { path: "tailwind.config.ts" }
+      { type: "env-example", file: ".env.example" },
+      { type: "components", file: "components.json" },
+      { type: "package", file: "package.json" },
+      { type: "tailwind", file: "tailwind.config.ts" }
     ]
   );
 });
@@ -149,8 +164,8 @@ test("does not list secret-bearing env files from the repository root", () => {
     writeFileSync(join(rootDir, "postcss.config.js"), "export default {};");
 
     assert.deepEqual(readConfigFiles(rootDir), [
-      { path: ".env.example" },
-      { path: "postcss.config.js" }
+      { type: "env-example", file: ".env.example" },
+      { type: "postcss", file: "postcss.config.js" }
     ]);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
@@ -164,7 +179,9 @@ test("does not list directories with config file names", () => {
     mkdirSync(join(rootDir, "tsconfig.json"));
     writeFileSync(join(rootDir, "components.json"), "{}");
 
-    assert.deepEqual(readConfigFiles(rootDir), [{ path: "components.json" }]);
+    assert.deepEqual(readConfigFiles(rootDir), [
+      { type: "components", file: "components.json" }
+    ]);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }
