@@ -114,6 +114,97 @@ export default UsersPage;`
   );
 });
 
+test("classifies constant-style variables as constants in TypeScript and TSX files", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "src/navigation.ts",
+      `export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24;
+const SIDEBAR_COOKIE_NAME = "sidebar_state";`
+    ).map(({ name, kind, exported }) => ({ name, kind, exported })),
+    [
+      {
+        name: "LOCALE_COOKIE_MAX_AGE",
+        kind: "constant",
+        exported: true
+      },
+      {
+        name: "SIDEBAR_COOKIE_NAME",
+        kind: "constant",
+        exported: false
+      }
+    ]
+  );
+
+  assert.deepEqual(
+    extractSymbols(
+      "src/components/sidebar.tsx",
+      `export const SIDEBAR_WIDTH = "16rem";
+const MOBILE_BREAKPOINT = 768;`
+    ).map(({ name, kind, exported }) => ({ name, kind, exported })),
+    [
+      {
+        name: "MOBILE_BREAKPOINT",
+        kind: "constant",
+        exported: false
+      },
+      {
+        name: "SIDEBAR_WIDTH",
+        kind: "constant",
+        exported: true
+      }
+    ]
+  );
+});
+
+test("keeps PascalCase TSX symbols classified as components", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "src/components/sidebar.tsx",
+      `function AppSidebar() {
+  return <Sidebar />;
+}
+
+const ProjectSwitcher = () => {
+  return <DropdownMenu />;
+};`
+    ).map(({ name, kind, exported }) => ({ name, kind, exported })),
+    [
+      {
+        name: "AppSidebar",
+        kind: "component",
+        exported: false
+      },
+      {
+        name: "ProjectSwitcher",
+        kind: "component",
+        exported: false
+      }
+    ]
+  );
+});
+
+test("keeps uppercase arrow function symbols classified as functions", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "app/api/users/route.ts",
+      `export const GET = async () => {};
+const POST = function () {};`
+    ).map(({ name, kind, exported }) => ({ name, kind, exported })),
+    [
+      {
+        name: "GET",
+        kind: "function",
+        exported: true
+      },
+      {
+        name: "POST",
+        kind: "function",
+        exported: false
+      }
+    ]
+  );
+});
+
 test("marks locally aliased exports as exported symbols", () => {
   assert.deepEqual(
     extractSymbols(
