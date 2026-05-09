@@ -87,13 +87,43 @@ export function routeSegmentsToPublicPath(segments: string[]): string {
 }
 
 export function detectHttpMethods(source: string): HttpMethod[] {
+  const exportedNames = extractExportedNames(source);
+
   return HTTP_METHODS.filter((method) =>
     [
       `\\bexport\\s+(?:async\\s+)?function\\s+${method}\\b`,
       `\\bexport\\s+(?:const|let|var)\\s+${method}\\b`,
-      `\\bexport\\s*\\{[^}]*\\b(?:${method}|as\\s+${method})\\b[^}]*\\}`
-    ].some((pattern) => new RegExp(pattern).test(source))
+      `\\bexport\\s+(?:const|let|var)\\s*\\{[^}]*\\b${method}\\b[^}]*\\}\\s*=`
+    ].some((pattern) => new RegExp(pattern).test(source)) ||
+      exportedNames.has(method)
   );
+}
+
+function extractExportedNames(source: string): Set<string> {
+  const exportedNames = new Set<string>();
+
+  for (const match of source.matchAll(/\bexport\s+(?!type\b)\{([^}]+)\}/g)) {
+    for (const exportedName of parseExportList(match[1] ?? "")) {
+      exportedNames.add(exportedName);
+    }
+  }
+
+  return exportedNames;
+}
+
+function parseExportList(exportList: string): string[] {
+  return exportList
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => item.replace(/^type\s+/, ""))
+    .map((item) => {
+      const aliasMatch = /\bas\s+([A-Za-z_$][\w$]*)$/.exec(item);
+
+      return aliasMatch?.[1] ?? item;
+    })
+    .map((item) => item.trim())
+    .filter((item) => /^[A-Za-z_$][\w$]*$/.test(item));
 }
 
 function collectRouteFiles(
