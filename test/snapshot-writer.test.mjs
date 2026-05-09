@@ -230,6 +230,37 @@ test("scans an explicit target path and writes the snapshot there", () => {
   }
 });
 
+test("resolves a relative target path against cwd", () => {
+  const parentDir = mkdtempSync(join(tmpdir(), "context-forge-parent-"));
+  const cwd = join(parentDir, "cwd");
+  const targetDir = join(parentDir, "target");
+
+  try {
+    mkdirSync(cwd);
+    mkdirSync(targetDir);
+    writeMinimalProject(targetDir, "relative-target-app");
+
+    const result = captureMain(["../target"], cwd);
+    const snapshotPath = join(
+      targetDir,
+      ".agent-context",
+      "project.snapshot.json"
+    );
+    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+
+    assert.equal(resolveScanRoot(["../target"], cwd), targetDir);
+    assert.equal(result.exitCode, undefined);
+    assert.deepEqual(result.errors, []);
+    assert.equal(existsSync(snapshotPath), true);
+    assert.equal(snapshot.project.name, "relative-target-app");
+    assert.deepEqual(result.logs, [
+      `ContextForge snapshot written to ${snapshotPath}`
+    ]);
+  } finally {
+    rmSync(parentDir, { recursive: true, force: true });
+  }
+});
+
 test("reports a clear error when the explicit target path has no package.json", () => {
   const cwd = mkdtempSync(join(tmpdir(), "context-forge-cwd-"));
   const targetDir = mkdtempSync(join(tmpdir(), "context-forge-missing-package-"));
