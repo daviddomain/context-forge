@@ -430,16 +430,16 @@ function detectVariableSymbolKind(
     return "schema";
   }
 
-  if (isConstantStyleName(name)) {
-    return "constant";
-  }
-
   if (isLikelyComponentName(name, path)) {
     return "component";
   }
 
   if (/=>\s*|function\b/.test(declarationSnippet)) {
     return "function";
+  }
+
+  if (isConstantStyleName(name)) {
+    return "constant";
   }
 
   return "constant";

@@ -183,6 +183,28 @@ const ProjectSwitcher = () => {
   );
 });
 
+test("keeps uppercase arrow function symbols classified as functions", () => {
+  assert.deepEqual(
+    extractSymbols(
+      "app/api/users/route.ts",
+      `export const GET = async () => {};
+const POST = function () {};`
+    ).map(({ name, kind, exported }) => ({ name, kind, exported })),
+    [
+      {
+        name: "GET",
+        kind: "function",
+        exported: true
+      },
+      {
+        name: "POST",
+        kind: "function",
+        exported: false
+      }
+    ]
+  );
+});
+
 test("marks locally aliased exports as exported symbols", () => {
   assert.deepEqual(
     extractSymbols(
