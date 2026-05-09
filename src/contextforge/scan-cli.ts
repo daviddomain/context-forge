@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { SAFE_CONFIG_FILE_NAMES, detectConfigFiles } from "./config-files.js";
@@ -37,6 +37,16 @@ export type ProjectSnapshot = {
 export const SNAPSHOT_VERSION = "0.1.0";
 export const SNAPSHOT_DIR = ".agent-context";
 export const SNAPSHOT_FILE = "project.snapshot.json";
+
+export function resolveScanRoot(args: string[], cwd: string): string {
+  const [targetPath] = args;
+
+  if (targetPath === undefined) {
+    return cwd;
+  }
+
+  return resolve(cwd, targetPath);
+}
 
 export function readPackageMetadata(rootDir: string): PackageMetadata {
   const packageJsonPath = join(rootDir, "package.json");
@@ -104,6 +114,20 @@ export function writeProjectSnapshot(
   return snapshotPath;
 }
 
+export function runScan(rootDir: string): {
+  snapshotPath: string;
+  warnings: string[];
+} {
+  const result = scanRepository(rootDir);
+  const snapshot = createProjectSnapshot(result);
+  const snapshotPath = writeProjectSnapshot(rootDir, snapshot);
+
+  return {
+    snapshotPath,
+    warnings: result.warnings
+  };
+}
+
 function isFile(path: string): boolean {
   try {
     return statSync(path).isFile();
@@ -112,17 +136,16 @@ function isFile(path: string): boolean {
   }
 }
 
-export function main(rootDir = process.cwd()): void {
+export function main(args = process.argv.slice(2), cwd = process.cwd()): void {
   try {
-    const result = scanRepository(rootDir);
-    const snapshot = createProjectSnapshot(result);
-    const snapshotPath = writeProjectSnapshot(rootDir, snapshot);
+    const rootDir = resolveScanRoot(args, cwd);
+    const result = runScan(rootDir);
 
     for (const warning of result.warnings) {
       console.warn(`ContextForge scan warning: ${warning}`);
     }
 
-    console.log(`ContextForge snapshot written to ${snapshotPath}`);
+    console.log(`ContextForge snapshot written to ${result.snapshotPath}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`ContextForge scan failed: ${message}`);
