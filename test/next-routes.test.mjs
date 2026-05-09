@@ -41,6 +41,20 @@ test("detects exported route handler HTTP methods in stable order", () => {
   );
 });
 
+test("detects delegated route handler HTTP method exports", () => {
+  assert.deepEqual(
+    detectHttpMethods(`
+      const handler = toNextJsHandler(auth);
+
+      export const { GET, POST } = handler;
+      export const PATCH = handler.PATCH;
+      export { deleteHandler as DELETE } from "@/routes/delete";
+      export { HEAD, optionsHandler as OPTIONS };
+    `),
+    ["GET", "POST", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+  );
+});
+
 test("scans Next.js App Router pages, layouts and route handlers", () => {
   const rootDir = mkdtempSync(join(tmpdir(), "context-forge-routes-"));
 
