@@ -430,6 +430,10 @@ function detectVariableSymbolKind(
     return "schema";
   }
 
+  if (isConstantStyleName(name)) {
+    return "constant";
+  }
+
   if (isLikelyComponentName(name, path)) {
     return "component";
   }
@@ -442,7 +446,15 @@ function detectVariableSymbolKind(
 }
 
 function isLikelyComponentName(name: string, path: string): boolean {
-  return /\.(tsx|jsx)$/.test(path) && /^[A-Z][A-Za-z0-9_$]*$/.test(name);
+  return (
+    /\.(tsx|jsx)$/.test(path) &&
+    /^[A-Z][A-Za-z0-9_$]*$/.test(name) &&
+    !isConstantStyleName(name)
+  );
+}
+
+function isConstantStyleName(name: string): boolean {
+  return /^[A-Z][A-Z0-9_]*$/.test(name);
 }
 
 function isSchemaName(name: string): boolean {
