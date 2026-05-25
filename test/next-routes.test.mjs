@@ -136,6 +136,73 @@ test("scans Next.js App Router pages, layouts and route handlers", () => {
   }
 });
 
+test("scans Next.js App Router routes from src/app without leaking src into public paths", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-routes-"));
+
+  try {
+    writeFileSync(join(rootDir, "package.json"), JSON.stringify({}));
+
+    mkdirSync(join(rootDir, "src", "app", "(website)", "ai-hub"), {
+      recursive: true
+    });
+    mkdirSync(join(rootDir, "src", "app", "api", "drafts"), {
+      recursive: true
+    });
+
+    writeFileSync(
+      join(rootDir, "src", "app", "layout.tsx"),
+      "export default RootLayout;"
+    );
+    writeFileSync(
+      join(rootDir, "src", "app", "(website)", "layout.tsx"),
+      "export default WebsiteLayout;"
+    );
+    writeFileSync(
+      join(rootDir, "src", "app", "(website)", "ai-hub", "page.tsx"),
+      "export default AiHub;"
+    );
+    writeFileSync(
+      join(rootDir, "src", "app", "api", "drafts", "route.ts"),
+      "export async function GET() {}\nexport const POST = async () => {};"
+    );
+
+    assert.deepEqual(scanNextAppRoutes(rootDir), {
+      routes: [
+        {
+          path: "/",
+          type: "layout",
+          file: "src/app/(website)/layout.tsx",
+          routeSegments: ["(website)"]
+        },
+        {
+          path: "/",
+          type: "layout",
+          file: "src/app/layout.tsx",
+          routeSegments: []
+        },
+        {
+          path: "/ai-hub",
+          type: "page",
+          file: "src/app/(website)/ai-hub/page.tsx",
+          layouts: [
+            "src/app/layout.tsx",
+            "src/app/(website)/layout.tsx"
+          ]
+        },
+        {
+          path: "/api/drafts",
+          type: "route-handler",
+          file: "src/app/api/drafts/route.ts",
+          methods: ["GET", "POST"]
+        }
+      ],
+      warnings: []
+    });
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
 test("returns a warning instead of crashing when app directory is missing", () => {
   const rootDir = mkdtempSync(join(tmpdir(), "context-forge-routes-"));
 
@@ -144,10 +211,10 @@ test("returns a warning instead of crashing when app directory is missing", () =
 
     assert.deepEqual(scanNextAppRoutes(rootDir), {
       routes: [],
-      warnings: ["No Next.js App Router directory found at app/."]
+      warnings: ["No Next.js App Router directory found at app/ or src/app/."]
     });
     assert.deepEqual(scanRepository(rootDir).warnings, [
-      "No Next.js App Router directory found at app/."
+      "No Next.js App Router directory found at app/ or src/app/."
     ]);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
