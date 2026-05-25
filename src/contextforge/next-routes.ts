@@ -58,15 +58,21 @@ type RouteFile = {
   fileName: string;
 };
 
-export function scanNextAppRoutes(rootDir: string): NextRouteScanResult {
-  const appDir = join(rootDir, "app");
+const APP_ROUTER_ROOT_CANDIDATES = ["app", "src/app"];
 
-  if (!isDirectory(appDir)) {
+export function scanNextAppRoutes(rootDir: string): NextRouteScanResult {
+  const appRoot = APP_ROUTER_ROOT_CANDIDATES.find((candidate) =>
+    isDirectory(join(rootDir, candidate))
+  );
+
+  if (appRoot === undefined) {
     return {
       routes: [],
-      warnings: ["No Next.js App Router directory found at app/."]
+      warnings: ["No Next.js App Router directory found at app/ or src/app/."]
     };
   }
+
+  const appDir = join(rootDir, appRoot);
 
   return {
     routes: collectRouteFiles(rootDir, appDir)
