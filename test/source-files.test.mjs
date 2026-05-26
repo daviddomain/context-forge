@@ -61,6 +61,36 @@ test("creates source file index entries with kind and heuristic tags", () => {
   );
 });
 
+test("classifies known Jest and Sanity config files without component tags", () => {
+  assert.deepEqual(
+    [
+      createSourceFileIndexEntry("jest.config.ts", "export default {};"),
+      createSourceFileIndexEntry(
+        "sanity.config.ts",
+        `"use client";\nexport default {};`
+      ),
+      createSourceFileIndexEntry("sanity.cli.ts", "export default {};")
+    ].map(({ path, kind, tags }) => ({ path, kind, tags })),
+    [
+      {
+        path: "jest.config.ts",
+        kind: "config",
+        tags: ["config"]
+      },
+      {
+        path: "sanity.config.ts",
+        kind: "config",
+        tags: ["config"]
+      },
+      {
+        path: "sanity.cli.ts",
+        kind: "config",
+        tags: ["config"]
+      }
+    ]
+  );
+});
+
 test("extracts lightweight symbols with export status and heuristic tags", () => {
   assert.deepEqual(
     extractSymbols(
@@ -284,6 +314,9 @@ test("scans source files deterministically and excludes generated directories", 
     writeFileSync(join(rootDir, "src", "b.test.ts"), "export const testValue = 1;");
     writeFileSync(join(rootDir, "src", "a.ts"), "import fs from 'node:fs'; export { fs };");
     writeFileSync(join(rootDir, "next.config.ts"), "export default {};");
+    writeFileSync(join(rootDir, "jest.config.ts"), "export default {};");
+    writeFileSync(join(rootDir, "sanity.config.ts"), `"use client";\nexport default {};`);
+    writeFileSync(join(rootDir, "sanity.cli.ts"), "export default {};");
     writeFileSync(join(rootDir, "node_modules", "pkg", "index.js"), "export const ignored = true;");
     writeFileSync(join(rootDir, ".agent-context", "snapshot.ts"), "export const ignored = true;");
     writeFileSync(join(rootDir, "dist", "index.js"), "export const ignored = true;");
@@ -301,7 +334,28 @@ test("scans source files deterministically and excludes generated directories", 
         exports: ["GET"]
       },
       {
+        path: "jest.config.ts",
+        kind: "config",
+        tags: ["config"],
+        imports: [],
+        exports: ["default"]
+      },
+      {
         path: "next.config.ts",
+        kind: "config",
+        tags: ["config"],
+        imports: [],
+        exports: ["default"]
+      },
+      {
+        path: "sanity.cli.ts",
+        kind: "config",
+        tags: ["config"],
+        imports: [],
+        exports: ["default"]
+      },
+      {
+        path: "sanity.config.ts",
         kind: "config",
         tags: ["config"],
         imports: [],
@@ -325,7 +379,15 @@ test("scans source files deterministically and excludes generated directories", 
 
     assert.deepEqual(
       scanRepository(rootDir).files.map((file) => file.path),
-      ["app/api/users/route.ts", "next.config.ts", "src/a.ts", "src/b.test.ts"]
+      [
+        "app/api/users/route.ts",
+        "jest.config.ts",
+        "next.config.ts",
+        "sanity.cli.ts",
+        "sanity.config.ts",
+        "src/a.ts",
+        "src/b.test.ts"
+      ]
     );
 
     assert.deepEqual(
@@ -345,7 +407,25 @@ test("scans source files deterministically and excludes generated directories", 
         {
           name: "default",
           kind: "unknown",
+          file: "jest.config.ts",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
           file: "next.config.ts",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
+          file: "sanity.cli.ts",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
+          file: "sanity.config.ts",
           exported: true
         },
         {

@@ -47,7 +47,10 @@ const CONFIG_FILE_NAMES = new Set([
   "eslint.config.mjs",
   "tailwind.config.js",
   "tailwind.config.ts",
-  "postcss.config.js"
+  "postcss.config.js",
+  "jest.config.ts",
+  "sanity.config.ts",
+  "sanity.cli.ts"
 ]);
 
 const DB_IMPORTS = new Set(["@prisma/client", "drizzle-orm"]);
@@ -206,10 +209,12 @@ function detectTags(
     tags.push("config");
   }
 
-  if (isClientComponent(source)) {
-    tags.push("client-component");
-  } else if (isAppRouterComponent(path)) {
-    tags.push("server-component");
+  if (kind !== "config") {
+    if (isClientComponent(source)) {
+      tags.push("client-component");
+    } else if (isAppRouterComponent(path)) {
+      tags.push("server-component");
+    }
   }
 
   if (isRouteHandler(path)) {
