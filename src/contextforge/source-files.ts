@@ -264,11 +264,21 @@ function isLikelySchema(
   imports: string[] = extractImports(source)
 ): boolean {
   return (
+    isSanitySchemaFile(path) ||
     /\bschema\b/i.test(path) ||
     imports.some((value) =>
       ["zod", "yup", "valibot", "superstruct"].includes(value)
     ) ||
     /(?:^|[^\w$])(?:z|yup)\.object\s*\(/.test(source)
+  );
+}
+
+function isSanitySchemaFile(path: string): boolean {
+  const normalizedPath = path.replaceAll("\\", "/");
+
+  return (
+    SOURCE_EXTENSIONS.has(extname(normalizedPath)) &&
+    /^(?:src\/)?sanity\/schemaTypes\//.test(normalizedPath)
   );
 }
 
