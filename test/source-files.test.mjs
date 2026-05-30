@@ -300,6 +300,47 @@ export type UserSchema = typeof userSchema;`
   );
 });
 
+test("tags Sanity schema type files as schema", () => {
+  assert.deepEqual(
+    [
+      createSourceFileIndexEntry(
+        "src/sanity/schemaTypes/post.ts",
+        "export default {};"
+      ),
+      createSourceFileIndexEntry(
+        "src/sanity/schemaTypes/author.tsx",
+        "export const author = {};"
+      ),
+      createSourceFileIndexEntry(
+        "sanity/schemaTypes/project.js",
+        "export default {};"
+      ),
+      createSourceFileIndexEntry(
+        "sanity/schemaTypes/index.jsx",
+        "export { project } from './project';"
+      )
+    ].map(({ path, tags }) => ({ path, tags })),
+    [
+      {
+        path: "src/sanity/schemaTypes/post.ts",
+        tags: ["schema"]
+      },
+      {
+        path: "src/sanity/schemaTypes/author.tsx",
+        tags: ["schema"]
+      },
+      {
+        path: "sanity/schemaTypes/project.js",
+        tags: ["schema"]
+      },
+      {
+        path: "sanity/schemaTypes/index.jsx",
+        tags: ["schema"]
+      }
+    ]
+  );
+});
+
 test("scans source files deterministically and excludes generated directories", () => {
   const rootDir = mkdtempSync(join(tmpdir(), "context-forge-source-files-"));
 
