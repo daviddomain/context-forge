@@ -61,9 +61,25 @@ test("creates source file index entries with kind and heuristic tags", () => {
   );
 });
 
-test("classifies known Jest and Sanity config files without component tags", () => {
+test("classifies known config files without source-oriented tags", () => {
   assert.deepEqual(
     [
+      createSourceFileIndexEntry(
+        "drizzle.config.ts",
+        `"use client";\nimport { defineConfig } from "drizzle-kit";\nexport default defineConfig({});`
+      ),
+      createSourceFileIndexEntry(
+        "drizzle.config.js",
+        `"use client";\nexport default {};`
+      ),
+      createSourceFileIndexEntry(
+        "drizzle.config.mts",
+        `"use client";\nexport default {};`
+      ),
+      createSourceFileIndexEntry(
+        "drizzle.config.mjs",
+        `"use client";\nexport default {};`
+      ),
       createSourceFileIndexEntry("jest.config.ts", "export default {};"),
       createSourceFileIndexEntry(
         "sanity.config.ts",
@@ -72,6 +88,26 @@ test("classifies known Jest and Sanity config files without component tags", () 
       createSourceFileIndexEntry("sanity.cli.ts", "export default {};")
     ].map(({ path, kind, tags }) => ({ path, kind, tags })),
     [
+      {
+        path: "drizzle.config.ts",
+        kind: "config",
+        tags: ["config"]
+      },
+      {
+        path: "drizzle.config.js",
+        kind: "config",
+        tags: ["config"]
+      },
+      {
+        path: "drizzle.config.mts",
+        kind: "config",
+        tags: ["config"]
+      },
+      {
+        path: "drizzle.config.mjs",
+        kind: "config",
+        tags: ["config"]
+      },
       {
         path: "jest.config.ts",
         kind: "config",
@@ -354,6 +390,10 @@ test("scans source files deterministically and excludes generated directories", 
     writeFileSync(join(rootDir, "package.json"), JSON.stringify({}));
     writeFileSync(join(rootDir, "src", "b.test.ts"), "export const testValue = 1;");
     writeFileSync(join(rootDir, "src", "a.ts"), "import fs from 'node:fs'; export { fs };");
+    writeFileSync(join(rootDir, "drizzle.config.ts"), "export default {};");
+    writeFileSync(join(rootDir, "drizzle.config.js"), "export default {};");
+    writeFileSync(join(rootDir, "drizzle.config.mts"), "export default {};");
+    writeFileSync(join(rootDir, "drizzle.config.mjs"), "export default {};");
     writeFileSync(join(rootDir, "next.config.ts"), "export default {};");
     writeFileSync(join(rootDir, "jest.config.ts"), "export default {};");
     writeFileSync(join(rootDir, "sanity.config.ts"), `"use client";\nexport default {};`);
@@ -373,6 +413,34 @@ test("scans source files deterministically and excludes generated directories", 
         tags: ["route-handler"],
         imports: [],
         exports: ["GET"]
+      },
+      {
+        path: "drizzle.config.js",
+        kind: "config",
+        tags: ["config"],
+        imports: [],
+        exports: ["default"]
+      },
+      {
+        path: "drizzle.config.mjs",
+        kind: "config",
+        tags: ["config"],
+        imports: [],
+        exports: ["default"]
+      },
+      {
+        path: "drizzle.config.mts",
+        kind: "config",
+        tags: ["config"],
+        imports: [],
+        exports: ["default"]
+      },
+      {
+        path: "drizzle.config.ts",
+        kind: "config",
+        tags: ["config"],
+        imports: [],
+        exports: ["default"]
       },
       {
         path: "jest.config.ts",
@@ -422,6 +490,10 @@ test("scans source files deterministically and excludes generated directories", 
       scanRepository(rootDir).files.map((file) => file.path),
       [
         "app/api/users/route.ts",
+        "drizzle.config.js",
+        "drizzle.config.mjs",
+        "drizzle.config.mts",
+        "drizzle.config.ts",
         "jest.config.ts",
         "next.config.ts",
         "sanity.cli.ts",
@@ -443,6 +515,30 @@ test("scans source files deterministically and excludes generated directories", 
           name: "GET",
           kind: "function",
           file: "app/api/users/route.ts",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
+          file: "drizzle.config.js",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
+          file: "drizzle.config.mjs",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
+          file: "drizzle.config.mts",
+          exported: true
+        },
+        {
+          name: "default",
+          kind: "unknown",
+          file: "drizzle.config.ts",
           exported: true
         },
         {

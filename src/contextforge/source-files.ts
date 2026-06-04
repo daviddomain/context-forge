@@ -48,6 +48,10 @@ const CONFIG_FILE_NAMES = new Set([
   "tailwind.config.js",
   "tailwind.config.ts",
   "postcss.config.js",
+  "drizzle.config.js",
+  "drizzle.config.mjs",
+  "drizzle.config.mts",
+  "drizzle.config.ts",
   "jest.config.ts",
   "sanity.config.ts",
   "sanity.cli.ts"
@@ -173,7 +177,7 @@ function collectSourceFilePaths(rootDir: string, currentDir = rootDir): string[]
       continue;
     }
 
-    if (entry.isFile() && SOURCE_EXTENSIONS.has(extname(entry.name))) {
+    if (entry.isFile() && isSourceIndexFile(entry.name)) {
       paths.push(normalizePath(relative(rootDir, entryPath)));
     }
   }
@@ -186,11 +190,19 @@ function detectFileKind(path: string): SourceFileKind {
     return "test";
   }
 
-  if (CONFIG_FILE_NAMES.has(basename(path))) {
+  if (isKnownConfigFile(path)) {
     return "config";
   }
 
   return "source";
+}
+
+function isSourceIndexFile(path: string): boolean {
+  return SOURCE_EXTENSIONS.has(extname(path)) || isKnownConfigFile(path);
+}
+
+function isKnownConfigFile(path: string): boolean {
+  return CONFIG_FILE_NAMES.has(basename(path));
 }
 
 function detectTags(
@@ -225,15 +237,17 @@ function detectTags(
     tags.push("schema");
   }
 
-  if (
-    imports.some(isDbImport) ||
-    /\b(db|database|prisma|drizzle)\b/i.test(path)
-  ) {
-    tags.push("db-access");
-  }
+  if (kind !== "config") {
+    if (
+      imports.some(isDbImport) ||
+      /\b(db|database|prisma|drizzle)\b/i.test(path)
+    ) {
+      tags.push("db-access");
+    }
 
-  if (hasObviousSideEffect(source, imports)) {
-    tags.push("side-effect");
+    if (hasObviousSideEffect(source, imports)) {
+      tags.push("side-effect");
+    }
   }
 
   return sortedUnique(tags);
