@@ -1,6 +1,12 @@
 import type { ConfigFile } from "./config-files.js";
 
-export type PackageManager = "npm";
+export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
+export type PackageManagerLockfile =
+  | "pnpm-lock.yaml"
+  | "package-lock.json"
+  | "yarn.lock"
+  | "bun.lock"
+  | "bun.lockb";
 export type ProjectLanguage = "typescript";
 export type ProjectFramework = "next";
 
@@ -32,7 +38,7 @@ export type PackageMetadata = {
 
 export type PackageMetadataInput = {
   packageJson: PackageJson;
-  hasPackageLock: boolean;
+  packageManagerLockfiles: PackageManagerLockfile[];
   hasTsConfig: boolean;
   configFiles?: ConfigFile[];
 };
@@ -51,7 +57,7 @@ export function extractPackageMetadata(
           ? input.packageJson.name
           : null,
       rootPath: ".",
-      packageManager: input.hasPackageLock ? "npm" : null,
+      packageManager: detectPackageManager(input.packageManagerLockfiles),
       language: input.hasTsConfig ? "typescript" : null,
       framework: runtimeDependencies.includes("next") ? "next" : null,
       frameworkVersion
@@ -64,6 +70,31 @@ export function extractPackageMetadata(
     }
   };
 }
+
+export function detectPackageManager(
+  lockfiles: readonly PackageManagerLockfile[]
+): PackageManager | null {
+  const lockfileSet = new Set(lockfiles);
+
+  for (const { fileName, packageManager } of PACKAGE_MANAGER_LOCKFILES) {
+    if (lockfileSet.has(fileName)) {
+      return packageManager;
+    }
+  }
+
+  return null;
+}
+
+export const PACKAGE_MANAGER_LOCKFILES: readonly {
+  fileName: PackageManagerLockfile;
+  packageManager: PackageManager;
+}[] = [
+  { fileName: "pnpm-lock.yaml", packageManager: "pnpm" },
+  { fileName: "package-lock.json", packageManager: "npm" },
+  { fileName: "yarn.lock", packageManager: "yarn" },
+  { fileName: "bun.lock", packageManager: "bun" },
+  { fileName: "bun.lockb", packageManager: "bun" }
+];
 
 function dependencyVersion(value: unknown, dependencyName: string): string | null {
   if (!isPlainObject(value)) {

@@ -13,7 +13,7 @@ import {
 
 test("extracts sorted package metadata facts", () => {
   const metadata = extractPackageMetadata({
-    hasPackageLock: true,
+    packageManagerLockfiles: ["package-lock.json"],
     hasTsConfig: true,
     configFiles: [
       { type: "typescript", file: "tsconfig.json" },
@@ -62,7 +62,7 @@ test("extracts sorted package metadata facts", () => {
 
 test("uses empty collections and null detections for missing optional data", () => {
   const metadata = extractPackageMetadata({
-    hasPackageLock: false,
+    packageManagerLockfiles: [],
     hasTsConfig: false,
     packageJson: {}
   });
@@ -83,6 +83,41 @@ test("uses empty collections and null detections for missing optional data", () 
       dev: []
     }
   });
+});
+
+test("detects package managers from common lockfiles", () => {
+  const cases = [
+    ["package-lock.json", "npm"],
+    ["pnpm-lock.yaml", "pnpm"],
+    ["yarn.lock", "yarn"],
+    ["bun.lock", "bun"],
+    ["bun.lockb", "bun"]
+  ];
+
+  for (const [lockfile, packageManager] of cases) {
+    const metadata = extractPackageMetadata({
+      packageManagerLockfiles: [lockfile],
+      hasTsConfig: false,
+      packageJson: {}
+    });
+
+    assert.equal(metadata.project.packageManager, packageManager);
+  }
+});
+
+test("uses deterministic package manager precedence for multiple lockfiles", () => {
+  const metadata = extractPackageMetadata({
+    packageManagerLockfiles: [
+      "bun.lock",
+      "yarn.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml"
+    ],
+    hasTsConfig: false,
+    packageJson: {}
+  });
+
+  assert.equal(metadata.project.packageManager, "pnpm");
 });
 
 test("reads package metadata from a repository root", () => {
@@ -130,6 +165,32 @@ test("reads package metadata from a repository root", () => {
         dev: []
       }
     });
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("reads package manager lockfiles from a repository root", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    writeFileSync(join(rootDir, "package.json"), "{}");
+    writeFileSync(join(rootDir, "pnpm-lock.yaml"), "");
+
+    assert.equal(readPackageMetadata(rootDir).project.packageManager, "pnpm");
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("ignores directories with package manager lockfile names", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    writeFileSync(join(rootDir, "package.json"), "{}");
+    mkdirSync(join(rootDir, "pnpm-lock.yaml"));
+
+    assert.equal(readPackageMetadata(rootDir).project.packageManager, null);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }

@@ -6,6 +6,7 @@ import { SAFE_CONFIG_FILE_NAMES, detectConfigFiles } from "./config-files.js";
 import { scanNextAppRoutes, type AppRoute } from "./next-routes.js";
 import {
   extractPackageMetadata,
+  PACKAGE_MANAGER_LOCKFILES,
   type PackageJson,
   type PackageMetadata
 } from "./package-metadata.js";
@@ -61,7 +62,9 @@ export function readPackageMetadata(rootDir: string): PackageMetadata {
 
   return extractPackageMetadata({
     packageJson,
-    hasPackageLock: existsSync(join(rootDir, "package-lock.json")),
+    packageManagerLockfiles: PACKAGE_MANAGER_LOCKFILES.filter(({ fileName }) =>
+      isFile(join(rootDir, fileName))
+    ).map(({ fileName }) => fileName),
     hasTsConfig: existsSync(join(rootDir, "tsconfig.json")),
     configFiles: readConfigFiles(rootDir)
   });
