@@ -204,15 +204,49 @@ test("detects only safe config files in stable order", () => {
       "package.json",
       ".env.example",
       ".env.local",
-      "components.json"
+      "components.json",
+      "drizzle.config.mts",
+      "drizzle.config.ts",
+      "jest.config.ts",
+      "sanity.config.ts"
     ]),
     [
       { type: "env-example", file: ".env.example" },
       { type: "components", file: "components.json" },
+      { type: "drizzle", file: "drizzle.config.mts" },
+      { type: "drizzle", file: "drizzle.config.ts" },
+      { type: "jest", file: "jest.config.ts" },
       { type: "package", file: "package.json" },
+      { type: "sanity", file: "sanity.config.ts" },
       { type: "tailwind", file: "tailwind.config.ts" }
     ]
   );
+});
+
+test("detects source-index config files from the repository root", () => {
+  const rootDir = mkdtempSync(join(tmpdir(), "context-forge-test-"));
+
+  try {
+    writeFileSync(join(rootDir, "drizzle.config.ts"), "export default {};");
+    writeFileSync(join(rootDir, "drizzle.config.js"), "export default {};");
+    writeFileSync(join(rootDir, "drizzle.config.mts"), "export default {};");
+    writeFileSync(join(rootDir, "drizzle.config.mjs"), "export default {};");
+    writeFileSync(join(rootDir, "next.config.ts"), "export default {};");
+    writeFileSync(join(rootDir, "jest.config.ts"), "export default {};");
+    writeFileSync(join(rootDir, "sanity.config.ts"), "export default {};");
+
+    assert.deepEqual(readConfigFiles(rootDir), [
+      { type: "drizzle", file: "drizzle.config.js" },
+      { type: "drizzle", file: "drizzle.config.mjs" },
+      { type: "drizzle", file: "drizzle.config.mts" },
+      { type: "drizzle", file: "drizzle.config.ts" },
+      { type: "jest", file: "jest.config.ts" },
+      { type: "next", file: "next.config.ts" },
+      { type: "sanity", file: "sanity.config.ts" }
+    ]);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
 });
 
 test("does not list secret-bearing env files from the repository root", () => {

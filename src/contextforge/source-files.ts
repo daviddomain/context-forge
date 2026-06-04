@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, extname, join, relative, sep } from "node:path";
 
+import { SOURCE_INDEX_CONFIG_FILE_NAMES } from "./config-files.js";
+
 export type SourceFileKind = "source" | "test" | "config";
 
 export type SourceSymbolKind =
@@ -39,23 +41,7 @@ const EXCLUDED_DIRECTORIES = new Set([
   ".agent-context"
 ]);
 
-const CONFIG_FILE_NAMES = new Set([
-  "next.config.js",
-  "next.config.mjs",
-  "next.config.ts",
-  "eslint.config.js",
-  "eslint.config.mjs",
-  "tailwind.config.js",
-  "tailwind.config.ts",
-  "postcss.config.js",
-  "drizzle.config.js",
-  "drizzle.config.mjs",
-  "drizzle.config.mts",
-  "drizzle.config.ts",
-  "jest.config.ts",
-  "sanity.config.ts",
-  "sanity.cli.ts"
-]);
+const CONFIG_FILE_NAMES = new Set<string>(SOURCE_INDEX_CONFIG_FILE_NAMES);
 
 const DB_IMPORTS = new Set(["@prisma/client", "drizzle-orm"]);
 
