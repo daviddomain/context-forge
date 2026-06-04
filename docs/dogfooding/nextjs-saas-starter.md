@@ -78,13 +78,11 @@ The dogfooding run identified these concrete follow-up candidates:
   this run, `drizzle.config.ts` was indexed as normal source and tagged with
   `db-access` and `side-effect`, but for agent orientation it is primarily a
   config or tooling file.
-- Verify package manager detection separately. The snapshot reported
-  `packageManager` as `null`; this may be correct if the target project has no
-  package-manager field and no lockfile, so it should remain an open
-  verification point rather than a confirmed scanner bug.
+- Improve package manager detection for common lockfiles. The snapshot reported
+  `packageManager` as `null` even though the target project contains
+  `pnpm-lock.yaml`. This is tracked separately as follow-up work.
 - Consider future `tagReasons` support to explain noisy heuristic tags such as
   `side-effect`. This note records the need only as possible future work and
   does not specify or implement `tagReasons`.
 - Refine symbol kind detection later. Some symbol kinds appeared imprecise, for
   example constants or initialized values being classified as functions.
-
