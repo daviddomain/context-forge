@@ -11,6 +11,12 @@ the deterministic project snapshot:
 npm run contextforge:scan
 ```
 
+To scan a project in another folder after building ContextForge, run:
+
+```bash
+node dist/contextforge/scan-cli.js /path/to/your/project/
+```
+
 The command creates `.agent-context/project.snapshot.json` with project metadata,
 package scripts, dependencies, detected config files, Next.js App Router
 routes, source-file imports/exports and a lightweight symbol index.
