@@ -5,26 +5,40 @@ export type ConfigFile = {
 
 export type ConfigFileType =
   | "components"
+  | "drizzle"
   | "env-example"
   | "eslint"
+  | "jest"
   | "next"
   | "package"
   | "postcss"
+  | "sanity"
   | "tailwind"
   | "typescript";
+
+export const SOURCE_INDEX_CONFIG_FILE_NAMES = [
+  "drizzle.config.js",
+  "drizzle.config.mjs",
+  "drizzle.config.mts",
+  "drizzle.config.ts",
+  "eslint.config.js",
+  "eslint.config.mjs",
+  "jest.config.ts",
+  "next.config.js",
+  "next.config.mjs",
+  "next.config.ts",
+  "postcss.config.js",
+  "sanity.cli.ts",
+  "sanity.config.ts",
+  "tailwind.config.js",
+  "tailwind.config.ts"
+] as const;
 
 export const SAFE_CONFIG_FILE_NAMES = [
   ".env.example",
   "components.json",
-  "eslint.config.js",
-  "eslint.config.mjs",
-  "next.config.js",
-  "next.config.mjs",
-  "next.config.ts",
   "package.json",
-  "postcss.config.js",
-  "tailwind.config.js",
-  "tailwind.config.ts",
+  ...SOURCE_INDEX_CONFIG_FILE_NAMES,
   "tsconfig.json"
 ] as const;
 
@@ -52,8 +66,16 @@ function detectConfigFileType(fileName: SafeConfigFileName): ConfigFileType {
     return "components";
   }
 
+  if (fileName.startsWith("drizzle.config.")) {
+    return "drizzle";
+  }
+
   if (fileName.startsWith("eslint.config.")) {
     return "eslint";
+  }
+
+  if (fileName.startsWith("jest.config.")) {
+    return "jest";
   }
 
   if (fileName.startsWith("next.config.")) {
@@ -66,6 +88,10 @@ function detectConfigFileType(fileName: SafeConfigFileName): ConfigFileType {
 
   if (fileName.startsWith("postcss.config.")) {
     return "postcss";
+  }
+
+  if (fileName.startsWith("sanity.")) {
+    return "sanity";
   }
 
   if (fileName.startsWith("tailwind.config.")) {

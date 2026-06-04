@@ -503,6 +503,18 @@ test("scans source files deterministically and excludes generated directories", 
       ]
     );
 
+    assert.deepEqual(scanRepository(rootDir).configs, [
+      { type: "drizzle", file: "drizzle.config.js" },
+      { type: "drizzle", file: "drizzle.config.mjs" },
+      { type: "drizzle", file: "drizzle.config.mts" },
+      { type: "drizzle", file: "drizzle.config.ts" },
+      { type: "jest", file: "jest.config.ts" },
+      { type: "next", file: "next.config.ts" },
+      { type: "package", file: "package.json" },
+      { type: "sanity", file: "sanity.cli.ts" },
+      { type: "sanity", file: "sanity.config.ts" }
+    ]);
+
     assert.deepEqual(
       scanRepository(rootDir).symbols.map((symbol) => ({
         name: symbol.name,
